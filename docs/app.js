@@ -37,11 +37,12 @@
     const set = (id, ok, text) => { const li = $(id); li.className = ok ? 'ok' : 'bad'; li.querySelector('span').textContent = text; };
     try {
       const r = await fetch(API() + '/api/ping', { cache: 'no-store' });
-      const j = await r.json();
+      const j = await r.json(); S.sttOk = !!j.stt;
       set('#st-net', true, 'Сервер працює');
       set('#st-stt', !!j.stt, j.stt ? 'Розпізнавання мови: готово (' + j.provider + ')' : 'Розпізнавання мови не підключене');
       $('#idle-msg').textContent = j.stt ? '' : (j.hint || '');
     } catch (e) {
+      S.sttOk = false;
       set('#st-net', false, 'Немає зв\'язку із сервером'); set('#st-stt', false, API() ? 'Перевір адресу сервера нижче' : 'Запусти start.command, або вкажи адресу сервера нижче');
     }
     const sec = $('#st-sec');
@@ -108,7 +109,7 @@
     const job = S.queue.shift();
     try {
       const r = await fetch(API() + '/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: job.blob });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({ error: 'сервер недоступний (' + r.status + ')' }));
       if (!r.ok) throw new Error(j.error || r.status);
       if (S.live) ingest(j.text, job.t);
     } catch (e) {
@@ -184,6 +185,22 @@
     S.proc = S.src = S.stream = S.ctx = null; S.chunks = []; S.samples = 0;
   }
 
+  /* Запасний варіант без сервера: розпізнавання самим браузером (Chrome). Звук обробляє Google. */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  function startBrowserSTT() {
+    if (!SR) throw new Error('Цей браузер не вміє розпізнавати мову. Відкрий у Chrome або запусти сервер на Mac.');
+    const rec = new SR(); rec.lang = 'uk-UA'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal && !S.paused && S.live) ingest(e.results[i][0].transcript.trim(), elapsed());
+      }
+    };
+    rec.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { $('#line').textContent = 'Немає доступу до мікрофона'; S.live = false; } };
+    rec.onend = () => { if (S.live) { try { rec.start(); } catch (x) {} } };   // браузер сам зупиняє, тому перезапускаємо
+    rec.start(); S.rec = rec; S.browserSTT = true;
+    $('#line').textContent = 'Слухаю (розпізнавання в браузері)…';
+  }
+
   async function lockScreen() { try { if (navigator.wakeLock) S.wake = await navigator.wakeLock.request('screen'); } catch (e) {} }
   function unlockScreen() { try { S.wake && S.wake.release(); } catch (e) {} S.wake = null; }
   document.addEventListener('visibilitychange', () => {
@@ -211,12 +228,13 @@
 
   async function startCall() {
     if (!window.isSecureContext || !navigator.mediaDevices) { $('#idle-msg').textContent = 'Мікрофон працює тільки через https або localhost. На телефоні відкрий адресу з https://.'; return; }
-    try { begin(); await startMic(); }
+    try { begin(); if (S.sttOk) await startMic(); else startBrowserSTT(); }
     catch (e) { S.live = false; show('#screen-idle'); $('#idle-msg').textContent = 'Немає доступу до мікрофона: ' + e.message; stopMic(); clearInterval(S.timer); unlockScreen(); }
   }
 
   function endCall() {
     S.live = false; S.demo = false;
+    try { S.rec && (S.rec.onend = null, S.rec.stop()); } catch (e) {} S.rec = null; S.browserSTT = false;
     S.demoTimers.forEach(clearTimeout); S.demoTimers = [];
     clearInterval(S.timer); stopMic(); unlockScreen();
     resetUI();                       // повне очищення: нічого не зберігаємо
