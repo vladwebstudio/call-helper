@@ -1,6 +1,6 @@
 // Локальний сервер помічника розмови. Без залежностей, Node 18+.
-// Робить дві речі: віддає сторінку з public/ і передає звук (WAV) у розпізнавання мови.
-// Логіка болей/заперечень працює в браузері (public/engine.js), ШІ не використовується.
+// Робить дві речі: віддає сторінку з docs/ і передає звук (WAV) у розпізнавання мови.
+// Логіка болей/заперечень працює в браузері (docs/engine.js), ШІ не використовується.
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
@@ -9,7 +9,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const PUB = path.join(ROOT, 'public');
+const PUB = path.join(ROOT, 'docs');
 
 // ---------- .env ----------
 try {
@@ -28,6 +28,7 @@ const WHISPER_URL = env('WHISPER_URL', 'http://127.0.0.1:8178').replace(/\/$/, '
 const STT_URL = env('STT_URL');                                  // custom: OpenAI-сумісний /audio/transcriptions
 const STT_KEY = env('STT_KEY') || env('GROQ_API_KEY');
 const STT_MODEL = env('STT_MODEL', 'whisper-large-v3-turbo');
+const ALLOW_ORIGINS = ['null', 'https://vladwebstudio.github.io', ...env('CORS_ORIGINS').split(',').filter(Boolean)];   // сторінка з GitHub Pages ходить на цей сервер
 const MAX_BODY = 6 * 1024 * 1024;
 
 // ---------- розпізнавання ----------
@@ -92,7 +93,8 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 
 function send(res, code, obj, req) {
   const h = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
-  if (req && req.headers.origin === 'null') { h['Access-Control-Allow-Origin'] = 'null'; }   // стартова сторінка index.html, відкрита як файл
+  const o = req && req.headers.origin;
+  if (o && ALLOW_ORIGINS.includes(o)) h['Access-Control-Allow-Origin'] = o;
   res.writeHead(code, h); res.end(JSON.stringify(obj));
 }
 
@@ -107,7 +109,7 @@ function readBody(req) {
 
 async function handler(req, res) {
   const url = new URL(req.url, 'http://x');
-  if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': req.headers.origin === 'null' ? 'null' : '', 'Access-Control-Allow-Headers': 'Content-Type' }); return res.end(); }
+  if (req.method === 'OPTIONS') { const o = req.headers.origin; res.writeHead(204, ALLOW_ORIGINS.includes(o) ? { 'Access-Control-Allow-Origin': o, 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true' } : {}); return res.end(); }
 
   if (url.pathname.startsWith('/api/')) {
     try {

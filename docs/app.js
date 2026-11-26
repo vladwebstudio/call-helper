@@ -9,6 +9,8 @@
   const MAX_QUEUE = 3;         // якщо сервер не встигає: старі шматки відкидаємо, щоб підказки були «зараз»
 
   const $ = (s) => document.querySelector(s);
+  // Адреса сервера на Mac: порожня, якщо сторінку віддає сам сервер; інакше (GitHub Pages) задається в налаштуванні
+  const API = () => { try { return (localStorage.getItem('api') || '').replace(/\/$/, ''); } catch (e) { return ''; } };
   const KINDS = PATTERNS.KINDS;
   const engine = new Engine.Engine();
 
@@ -34,13 +36,13 @@
   async function ping() {
     const set = (id, ok, text) => { const li = $(id); li.className = ok ? 'ok' : 'bad'; li.querySelector('span').textContent = text; };
     try {
-      const r = await fetch('/api/ping', { cache: 'no-store' });
+      const r = await fetch(API() + '/api/ping', { cache: 'no-store' });
       const j = await r.json();
       set('#st-net', true, 'Сервер працює');
       set('#st-stt', !!j.stt, j.stt ? 'Розпізнавання мови: готово (' + j.provider + ')' : 'Розпізнавання мови не підключене');
       $('#idle-msg').textContent = j.stt ? '' : (j.hint || '');
     } catch (e) {
-      set('#st-net', false, 'Немає зв\'язку із сервером'); set('#st-stt', false, 'Запусти start.command');
+      set('#st-net', false, 'Немає зв\'язку із сервером'); set('#st-stt', false, API() ? 'Перевір адресу сервера нижче' : 'Запусти start.command, або вкажи адресу сервера нижче');
     }
     const sec = $('#st-sec');
     if (!window.isSecureContext) { sec.classList.remove('hide'); sec.className = 'bad'; sec.querySelector('span').textContent = 'Мікрофон потребує https або localhost'; }
@@ -105,7 +107,7 @@
     S.busy = true;
     const job = S.queue.shift();
     try {
-      const r = await fetch('/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: job.blob });
+      const r = await fetch(API() + '/api/transcribe', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: job.blob });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || r.status);
       if (S.live) ingest(j.text, job.t);
@@ -271,6 +273,13 @@
     render();
   });
 
+  $('#api').value = API();
+  $('#api-save').onclick = () => {
+    let v = $('#api').value.trim().replace(/\/$/, '');
+    if (v && !/^https?:\/\//.test(v)) v = 'https://' + v;
+    try { localStorage.setItem('api', v); } catch (e) {}
+    $('#api').value = v; ping(); toast(v ? 'Збережено' : 'Скинуто');
+  };
   ping();
   setInterval(() => { if (!S.live) ping(); }, 8000);
 })();

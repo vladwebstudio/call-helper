@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { Engine } = require('../../public/engine.js');
+const { Engine } = require('../../docs/engine.js');
 
 const files = process.argv.slice(2).filter(a => !a.startsWith('--'));
 const verbose = process.argv.includes('--v');

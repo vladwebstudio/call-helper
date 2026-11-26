@@ -88,3 +88,7 @@ h1{font-size:26px;margin:0 0 6px}
 .sheet-box h3{margin:0 0 4px;font-size:20px}
 .sheet-box p{margin:0 0 14px;color:var(--dim)}
 .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#222a3c;color:#fff;padding:10px 16px;border-radius:12px;z-index:30;font-size:14px;max-width:90vw}
+
+.srv{margin-top:14px;text-align:left;color:var(--dim);font-size:13px}
+.srv summary{cursor:pointer}
+.srv input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--txt);font-size:15px;margin:6px 0 8px}
