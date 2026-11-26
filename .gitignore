@@ -1,0 +1,7 @@
+.env
+certs/
+calls/
+node_modules/
+claude/tmp/
+.DS_Store
+*.log
