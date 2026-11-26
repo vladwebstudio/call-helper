@@ -33,20 +33,12 @@
   }
 
   /* ---------- перевірка сервера ---------- */
-  async function ping() {
-    const set = (id, ok, text) => { const li = $(id); li.className = ok ? 'ok' : 'bad'; li.querySelector('span').textContent = text; };
+  async function ping() {   // тихо: тільки визначає, чи є сервер розпізнавання на Mac
     try {
       const r = await fetch(API() + '/api/ping', { cache: 'no-store' });
-      const j = await r.json(); S.sttOk = !!j.stt;
-      set('#st-net', true, 'Сервер працює');
-      set('#st-stt', !!j.stt, j.stt ? 'Розпізнавання мови: готово (' + j.provider + ')' : 'Розпізнавання мови не підключене');
-      $('#idle-msg').textContent = j.stt ? '' : (j.hint || '');
-    } catch (e) {
-      S.sttOk = false;
-      set('#st-net', false, 'Немає зв\'язку із сервером'); set('#st-stt', false, API() ? 'Перевір адресу сервера нижче' : 'Запусти start.command, або вкажи адресу сервера нижче');
-    }
-    const sec = $('#st-sec');
-    if (!window.isSecureContext) { sec.classList.remove('hide'); sec.className = 'bad'; sec.querySelector('span').textContent = 'Мікрофон потребує https або localhost'; }
+      const j = await r.json();
+      S.sttOk = !!j.stt;
+    } catch (e) { S.sttOk = false; }
   }
 
   /* ---------- екрани ---------- */
