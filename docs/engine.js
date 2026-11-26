@@ -22,6 +22,7 @@
       if (c === '') continue;
       if (!/[a-zа-яіїєґ0-9Ѐ-ӿ]/i.test(c)) c = ' ';
       if (c === ' ' && out[out.length - 1] === ' ') continue;
+      if (c === out[out.length - 1] && /[а-яіїєґ]/.test(c)) continue;   // подвоєні літери (нн, сс) стискаємо: «неуверенность» = «неуверенось»
       out += c; idx.push(i);
     }
     if (out[out.length - 1] !== ' ') { out += ' '; idx.push(raw.length - 1); }
@@ -32,7 +33,7 @@
 
   /* Компіляція шаблонів: нормалізуємо літери, "<" = початок слова */
   function compile(src) {
-    const n = Array.from(src).map(ch => (ch === '<' ? '\u0001' : (Object.prototype.hasOwnProperty.call(MAP, ch) ? MAP[ch] : ch))).join('').replace(/\u0001/g, '\\s');
+    const n = Array.from(src).map(ch => (ch === '<' ? '\u0001' : (Object.prototype.hasOwnProperty.call(MAP, ch) ? MAP[ch] : ch))).join('').replace(/\u0001/g, '\\s').replace(/([а-яіїєґ])\1+/g, '$1');
     return new RegExp(n, 'i');
   }
 
